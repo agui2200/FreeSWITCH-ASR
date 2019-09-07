@@ -1,19 +1,22 @@
-/* asr mod. Copyright 2017, xuhuaiyi ALL RIGHTS RESERVED!
-    Author: cdevelop@qq.com(wwww.ddrj.com)
-
-    Ö®Ç°Ğ´ÁËÒ»¸öÉÌÒµÄ£¿émod_vad£¬ÒÔ¼°¶ş´Î¿ª·¢½Ó¿ÚSmartIVR(RESTful API)ÏêÏ¸¿´ http://www.dingdingtong.cn/smartivr/
-    ºÜ¶àÓÃ»§Ö»Ïë²âÊÔÒ»ÏÂASRµÄĞ§¹û,ÒÔ¼°Ï£Íû×Ô¼ºÕÆÎÕ»ñÈ¡FreeSWITCHÓïÒôÊı¾İµÄÔ­ÀíºÍ¹ı³Ì£¬ËùÒÔÌØÒâĞ´ÁËÕâ¸ö¿ªÔ´ÏîÄ¿¹©´ó¼Ò²Î¿¼¡£
-    ±¾ÏîÄ¿µÄ¼¼Êõ½»Á÷¿ÉÒÔ¼ÓÈº£º340129771
-    Èç¹ûĞèÒªÉÌÒµ·şÎñºÍÖ§³Ö¿ÉÒÔÁªÏµQQ£º1280791187£¬»òÕßÎ¢ĞÅ£ºcdevelop
-    
-    ±¾ÏîÄ¿ÊÇÍ¨¹ı°¢ÀïÔÆÊµÊ±ÓïÒôÊ¶±ğ½Ó¿Ú°ÑÍ¨»°ÖĞµÄÓïÒôÁ÷·¢ËÍµ½°¢ÀïÊ¶±ğ·şÎñÆ÷£¬Ê¶±ğ½á¹ûÍ¨¹ıESLÊÂ¼şÍ¨ÖªÒµÎñ³ÌĞò¡£
-
-
-*/
-
 #include <switch.h>
-#include "NlsClient.h"
 
+#include "nlsClient.h"
+#include "nlsEvent.h"
+
+#include "speechTranscriberRequest.h"
+#include "nlsCommonSdk\Token.h"
+#include <string>
+
+
+using std::string;
+
+using namespace AlibabaNlsCommon;
+using AlibabaNls::NlsClient;
+using AlibabaNls::NlsEvent;
+using AlibabaNls::LogDebug;
+using AlibabaNls::LogInfo;
+using AlibabaNls::SpeechTranscriberRequest;
+using AlibabaNls::SpeechTranscriberCallback;
 
  SWITCH_MODULE_LOAD_FUNCTION(mod_asr_load);
  SWITCH_MODULE_SHUTDOWN_FUNCTION(mod_asr_shutdown);
@@ -22,33 +25,51 @@
      SWITCH_MODULE_DEFINITION(mod_asr, mod_asr_load, mod_asr_shutdown, NULL);
  };
 
- NlsClient nlc;
- NlsSpeechCallback  callback;
+ NlsClient *nlc;
+ SpeechTranscriberCallback* callback;
 
 typedef struct {
 
     switch_core_session_t   *session;
     switch_media_bug_t      *bug;
-
-    NlsRequest              *request;
+    SpeechTranscriberRequest *request;
     char                    *id;
     char                    *seceret;
+    string                    *token;
 
     int                     stop;
 
 } switch_da_t;
 
 
-void OnResultDataRecved(NlsEvent* str, void* para)
+static int generateToken(string akId, string akSecret, string* token, long* expireTime)
 {
-    switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, " OnResultDataRecved %s %s\n", str->getId().c_str(), str->getResponse().c_str());
+    NlsToken nlsTokenRequest;
+    nlsTokenRequest.setAccessKeyId(akId);
+    nlsTokenRequest.setKeySecret(akSecret);
+
+    if (-1 == nlsTokenRequest.applyNlsToken()) {
+        switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, " generateTokenFailed %s \n",nlsTokenRequest.getErrorMsg());
+        return -1;
+    }
+
+    *token = nlsTokenRequest.getToken();
+    *expireTime = nlsTokenRequest.getExpireTime();
+
+    return 0;
+}
+
+
+void OnResultDataRecved(NlsEvent* str, void* cbParam)
+{
+    switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, " OnResultDataRecved %s %s\n", str->getTaskId(), str->getResponse());
     
     /*
     {"finish":1,"request_id":"13d5daad670947a5a7a12c581f5dc8b7","status_code":200,"version":"2.0"}
-    {"finish":0,"request_id":"13d5daad670947a5a7a12c581f5dc8b7","result":{"sentence_id":10,"begin_time":50960,"end_time":52915,"status_code":0,"text":"µç»°¹Òµô°É°İ°İ"},"status_code":200,"version":"2.0"}
-    {"finish":0,"request_id":"13d5daad670947a5a7a12c581f5dc8b7","result":{"sentence_id":10,"begin_time":50960,"end_time":-1,"status_code":1,"text":"µç»°¹Ò"},"status_code":200,"version":"2.0"}
-    {"finish":0,"request_id":"76a6e062ec9b4db68f5f6016c7f700aa","result":{"sentence_id":1,"begin_time":1100,"end_time":3505,"status_code":0,"text":"°¥£¬ºÃµÄÒ»¶©µ¥´ó¸Å¶àÉÙÇ®°¡"},"status_code":200,"version":"2.0"}
-    {"finish":0,"request_id":"76a6e062ec9b4db68f5f6016c7f700aa","result":{"sentence_id":1,"begin_time":1100,"end_time":-1,"status_code":1,"text":"°¥£¬ºÃµÄÒ»¶©µ¥´ó¸Å¶àÉÙÇ®"},"status_code":200,"version":"2.0"}
+    {"finish":0,"request_id":"13d5daad670947a5a7a12c581f5dc8b7","result":{"sentence_id":10,"begin_time":50960,"end_time":52915,"status_code":0,"text":"ï¿½ç»°ï¿½Òµï¿½ï¿½É°İ°ï¿½"},"status_code":200,"version":"2.0"}
+    {"finish":0,"request_id":"13d5daad670947a5a7a12c581f5dc8b7","result":{"sentence_id":10,"begin_time":50960,"end_time":-1,"status_code":1,"text":"ï¿½ç»°ï¿½ï¿½"},"status_code":200,"version":"2.0"}
+    {"finish":0,"request_id":"76a6e062ec9b4db68f5f6016c7f700aa","result":{"sentence_id":1,"begin_time":1100,"end_time":3505,"status_code":0,"text":"ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¶ï¿½ï¿½ï¿½Ç®ï¿½ï¿½"},"status_code":200,"version":"2.0"}
+    {"finish":0,"request_id":"76a6e062ec9b4db68f5f6016c7f700aa","result":{"sentence_id":1,"begin_time":1100,"end_time":-1,"status_code":1,"text":"ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¶ï¿½ï¿½ï¿½Ç®"},"status_code":200,"version":"2.0"}
     */
 
     switch_event_t *event = NULL;
@@ -56,8 +77,8 @@ void OnResultDataRecved(NlsEvent* str, void* para)
 
         event->subclass_name = strdup("asr");
         switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Event-Subclass", event->subclass_name);
-        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "ASR-Response", str->getResponse().c_str());
-        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Channel", str->getId().c_str());
+        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "ASR-Response", str->getAllResponse());
+        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Channel", str->getTaskId());
         switch_event_fire(&event);
     }
 
@@ -65,15 +86,15 @@ void OnResultDataRecved(NlsEvent* str, void* para)
 
 void OnOperationFailed(NlsEvent* str, void* para)
 {
-    switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, " OnOperationFailed %s %s\n", str->getId().c_str(), str->getErrorMessage().c_str());
+    switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, " OnOperationFailed %s %s\n", str->getTaskId(), str->getErrorMessage());
 
     switch_event_t *event = NULL;
     if (switch_event_create(&event, SWITCH_EVENT_CUSTOM) == SWITCH_STATUS_SUCCESS) {
 
         event->subclass_name = strdup("asr");
         switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Event-Subclass", event->subclass_name);
-        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "ASR-Error", str->getErrorMessage().c_str());
-        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Channel", str->getId().c_str());
+        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "ASR-Error", str->getErrorMessage());
+        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Channel", str->getTaskId());
         switch_event_fire(&event);
     }
 
@@ -82,7 +103,7 @@ void OnOperationFailed(NlsEvent* str, void* para)
 
 void OnChannelCloseed(NlsEvent* str, void* para)
 {
-    switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, " OnChannelCloseed %s %s\n", str->getId().c_str(), str->getResponse().c_str());
+    switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, " OnChannelCloseed %s %s\n", str->getTaskId(), str->getAllResponse());
 
     /*
     WebSocketSession [80066], appkey [nls-service-realtime-8k], uuid [291fbd2577d2474081e68abadb9708d5], orgCode [1613207423
@@ -92,8 +113,8 @@ void OnChannelCloseed(NlsEvent* str, void* para)
 
         event->subclass_name = strdup("asr");
         switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Event-Subclass", event->subclass_name);
-        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "ASR-Close", str->getResponse().c_str());
-        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Channel", str->getId().c_str());
+        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "ASR-Close", str->getResponse());
+        switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Channel", str->getTaskId());
         switch_event_fire(&event);
     }
 
@@ -109,19 +130,10 @@ static switch_bool_t asr_callback(switch_media_bug_t *bug, void *user_data, swit
     switch (type) {
     case SWITCH_ABC_TYPE_INIT:
         {
-
-
-#ifdef _WIN32
-            pvt->request = nlc.createRealTimeRequest(&callback, "config-realtime.txt");
-#else
-            pvt->request = nlc.createRealTimeRequest(&callback, "/etc/config-realtime.txt");
-#endif
-
             if (pvt->request) {
 
-                pvt->request->SetParam("Id", switch_channel_get_name(channel));
-                pvt->request->Authorize(pvt->id, pvt->seceret);
-                if (pvt->request->Start() < 0)
+                pvt->request->setContextParam( switch_channel_get_name(channel));
+                if (pvt->request->start() < 0)
                 {
                     switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "ASR Start Failed channel:%s\n", switch_channel_get_name(channel));
 
@@ -142,7 +154,7 @@ static switch_bool_t asr_callback(switch_media_bug_t *bug, void *user_data, swit
 
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "ASR Stop Succeed channel:%s\n", switch_channel_get_name(channel));
 
-                pvt->request->Stop();
+                pvt->request->stop();
                 delete pvt->request;
                 pvt->request = NULL;
             }
@@ -166,7 +178,7 @@ static switch_bool_t asr_callback(switch_media_bug_t *bug, void *user_data, swit
 
                 if (pvt->request) {
 
-                    if (pvt->request->SendAudio(frame_data, frame_len) <= 0) {
+                    if (pvt->request->sendAudio(frame_data, frame_len) <= 0) {
                         return SWITCH_FALSE;
                     }
                 }
@@ -223,8 +235,15 @@ SWITCH_STANDARD_APP(start_asr_session_function)
         pvt->session = session;
         pvt->id = argv[0];
         pvt->seceret = argv[1];
-
-
+        // è·å–token
+        string g_token = "";
+        long g_expireTime = -1;
+        if (-1 == generateToken(pvt->id,pvt->seceret,&g_token,&g_expireTime)){
+            // è·å–tokenå¤±è´¥äº†
+            return;
+        }
+        pvt->token = &g_token;
+        pvt->request = NlsClient::getInstance()->createTranscriberRequest(callback);
 
         if ((status = switch_core_media_bug_add(session, "asr", NULL,
             asr_callback, pvt, 0, SMBF_READ_REPLACE | SMBF_NO_PAUSE | SMBF_ONE_ONLY, &(pvt->bug))) != SWITCH_STATUS_SUCCESS) {
@@ -256,10 +275,11 @@ SWITCH_MODULE_LOAD_FUNCTION(mod_asr_load)
     SWITCH_ADD_APP(app_interface, "stop_asr", "asr", "asr", stop_asr_session_function, "", SAF_NONE);
 
     switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, " asr_load\n");
-
-    callback.setOnMessageReceiced(OnResultDataRecved);
-    callback.setOnOperationFailed(OnOperationFailed);
-    callback.setOnChannelClosed(OnChannelCloseed);
+    
+    callback = new SpeechTranscriberCallback();
+    callback->setOnTranscriptionCompleted(OnResultDataRecved);
+    callback->setOnTaskFailed(OnOperationFailed);
+    callback->setOnSentenceEnd(OnChannelCloseed);
 
 
     return SWITCH_STATUS_SUCCESS;
