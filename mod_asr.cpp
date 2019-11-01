@@ -2,13 +2,19 @@
 
 #include "nlsClient.h"
 #include "nlsEvent.h"
+
 #include "speechTranscriberRequest.h"
-
-
-#include "Token.h"
+#include "nlsCommonSdk\Token.h"
 #include <string>
 
 
+using namespace AlibabaNlsCommon;
+using AlibabaNls::NlsClient;
+using AlibabaNls::NlsEvent;
+using AlibabaNls::LogDebug;
+using AlibabaNls::LogInfo;
+using AlibabaNls::SpeechTranscriberRequest;
+using AlibabaNls::SpeechTranscriberCallback;
 
 using std::string;
 
@@ -28,7 +34,9 @@ using AlibabaNls::SpeechTranscriberCallback;
  };
 
  NlsClient *nlc;
- SpeechTranscriberCallback  *callback;
+
+ SpeechTranscriberCallback* callback;
+
 
 typedef struct {
 
@@ -44,8 +52,7 @@ typedef struct {
 } switch_da_t;
 
 
-
-int generateToken(string akId, string akSecret, string* token, long* expireTime)
+static int generateToken(string akId, string akSecret, string* token, long* expireTime)
 {
     NlsToken nlsTokenRequest;
     nlsTokenRequest.setAccessKeyId(akId);
@@ -133,7 +140,6 @@ static switch_bool_t asr_callback(switch_media_bug_t *bug, void *user_data, swit
     switch (type) {
     case SWITCH_ABC_TYPE_INIT:
         {
-
             if (pvt->request) {
 
                 pvt->request->setContextParam(switch_channel_get_name(channel));
@@ -239,7 +245,6 @@ SWITCH_STANDARD_APP(start_asr_session_function)
         pvt->session = session;
         pvt->id = argv[0];
         pvt->seceret = argv[1];
-
         // 获取token
         string g_token = "";
         long g_expireTime = -1;
@@ -249,7 +254,6 @@ SWITCH_STANDARD_APP(start_asr_session_function)
         }
 	   pvt->token = &g_token;
         pvt->request = NlsClient::getInstance()->createTranscriberRequest(callback);
-
 
         if ((status = switch_core_media_bug_add(session, "asr", NULL,
             asr_callback, pvt, 0, SMBF_READ_REPLACE | SMBF_NO_PAUSE | SMBF_ONE_ONLY, &(pvt->bug))) != SWITCH_STATUS_SUCCESS) {
@@ -280,9 +284,6 @@ SWITCH_MODULE_LOAD_FUNCTION(mod_asr_load)
     SWITCH_ADD_APP(app_interface, "stop_asr", "asr", "asr", stop_asr_session_function, "", SAF_NONE);
 
     switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, " asr_load\n");
-
-
-
     callback = new SpeechTranscriberCallback();
     callback->setOnTranscriptionCompleted(OnResultDataRecved);
     callback->setOnTaskFailed(OnOperationFailed);
