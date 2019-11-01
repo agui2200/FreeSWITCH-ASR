@@ -1,0 +1,1 @@
+/usr/bin/c++       CMakeFiles/srSyncDemo.dir/demo/speechRecognizerSyncDemo.cpp.o  -o ../demo/srSyncDemo  -L/usr/local/src/freeswitch/src/mod/applications/mod_asr/libs/nlsSdk/lib/linux -rdynamic -lnlsCppSdk -lnlsCommonSdk -lopus -lcurl -lssl -lcrypto -luuid -lpthread -Wl,-rpath,/usr/local/src/freeswitch/src/mod/applications/mod_asr/libs/nlsSdk/lib/linux 

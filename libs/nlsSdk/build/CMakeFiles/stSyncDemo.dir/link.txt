@@ -1,0 +1,1 @@
+/usr/bin/c++       CMakeFiles/stSyncDemo.dir/demo/speechTranscriberSyncDemo.cpp.o  -o ../demo/stSyncDemo  -L/usr/local/src/freeswitch/src/mod/applications/mod_asr/libs/nlsSdk/lib/linux -rdynamic -lnlsCppSdk -lnlsCommonSdk -lopus -lcurl -lssl -lcrypto -luuid -lpthread -Wl,-rpath,/usr/local/src/freeswitch/src/mod/applications/mod_asr/libs/nlsSdk/lib/linux 
