@@ -4,27 +4,21 @@
 #include "nlsEvent.h"
 
 #include "speechTranscriberRequest.h"
-#include "nlsCommonSdk\Token.h"
 #include <string>
 
+#include "Token.h"
+
 
 using namespace AlibabaNlsCommon;
+
+
 using AlibabaNls::NlsClient;
 using AlibabaNls::NlsEvent;
 using AlibabaNls::LogDebug;
 using AlibabaNls::LogInfo;
 using AlibabaNls::SpeechTranscriberRequest;
 using AlibabaNls::SpeechTranscriberCallback;
-
 using std::string;
-
-using namespace AlibabaNlsCommon;
-using AlibabaNls::NlsClient;
-using AlibabaNls::NlsEvent;
-using AlibabaNls::LogDebug;
-using AlibabaNls::LogInfo;
-using AlibabaNls::SpeechTranscriberRequest;
-using AlibabaNls::SpeechTranscriberCallback;
 
  SWITCH_MODULE_LOAD_FUNCTION(mod_asr_load);
  SWITCH_MODULE_SHUTDOWN_FUNCTION(mod_asr_shutdown);

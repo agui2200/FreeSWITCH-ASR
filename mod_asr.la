@@ -5,13 +5,13 @@
 # It is necessary for linking the library.
 
 # The name that we can dlopen(3).
-dlname='mod_asr.so'
+dlname=''
 
 # Names of this library.
-library_names='mod_asr.so mod_asr.so mod_asr.so'
+library_names=''
 
 # The name of the static archive.
-old_library=''
+old_library='mod_asr.a'
 
 # Linker flags that can not go in dependency_libs.
 inherited_linker_flags=' -pthread'
@@ -39,4 +39,3 @@ dlpreopen=''
 
 # Directory that this library needs to be installed in:
 libdir='/usr/local/freeswitch/mod'
-relink_command="(cd /usr/local/src/freeswitch/src/mod/applications/mod_asr; /bin/sh /usr/local/src/freeswitch/libtool  --silent --tag CXX --mode=relink g++ -g -O2 -avoid-version -module -no-undefined -shared -L./libs/nlsSdk/lib/linux -lnlsCppSdk -lnlsCommonSdk -lopus -lcurl -lssl -lcrypto -lpthread -luuid -ljsoncpp -o mod_asr.la -rpath /usr/local/freeswitch/mod mod_asr_la-mod_asr.lo /usr/local/src/freeswitch/libfreeswitch.la -lssl -lcrypto @inst_prefix_dir@)"

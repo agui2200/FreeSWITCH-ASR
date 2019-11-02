@@ -15,6 +15,7 @@
 
 
 
+
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
   case $${target_option-} in \
@@ -136,7 +137,7 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-am__installdirs = "$(DESTDIR)$(moddir)"
+am__installdirs = "$(DESTDIR)$(moddir)" "$(DESTDIR)$(mod_asr_ladir)"
 LTLIBRARIES = $(mod_LTLIBRARIES)
 mod_asr_la_DEPENDENCIES = $(switch_builddir)/libfreeswitch.la
 am_mod_asr_la_OBJECTS = mod_asr_la-mod_asr.lo
@@ -189,6 +190,7 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
+DATA = $(mod_asr_la_DATA)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -545,8 +547,10 @@ MODNAME = mod_asr
 mod_LTLIBRARIES = mod_asr.la
 mod_asr_la_SOURCES = mod_asr.cpp
 mod_asr_la_LIBADD = $(switch_builddir)/libfreeswitch.la 
-mod_asr_la_LDFLAGS = -avoid-version -module -no-undefined -shared -L'./libs/nlsSdk/lib/linux' -lnlsCppSdk -lnlsCommonSdk -lopus -lcurl -lssl -lcrypto -lpthread -luuid -ljsoncpp
-mod_asr_la_CPPFLAGS = $(AM_CPPFLAGS) -Ilibs/nlsSdk/include -Ilibs/nlsSdk/include/nlsCommonSdk 
+mod_asr_la_LDFLAGS = -static -avoid-version -module -no-undefined  -L'./libs/nlsSdk/lib/linux' -Wl,rpath='./libs/nlsSdk/lib/linux' -lnlsCppSdk -lnlsCommonSdk -lopus -lcurl -lssl -lcrypto -lpthread -luuid -ljsoncpp
+mod_asr_la_CPPFLAGS = $(AM_CPPFLAGS) -Ilibs/nlsSdk/include -Ilibs/nlsSdk/include/nlsCommonSdk
+mod_asr_ladir = ${libdir}
+mod_asr_la_DATA = libs/nlsSdk/lib/linux/*
 all: all-am
 
 .SUFFIXES:
@@ -665,6 +669,27 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
+install-mod_asr_laDATA: $(mod_asr_la_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(mod_asr_la_DATA)'; test -n "$(mod_asr_ladir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(mod_asr_ladir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(mod_asr_ladir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(mod_asr_ladir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(mod_asr_ladir)" || exit $$?; \
+	done
+
+uninstall-mod_asr_laDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(mod_asr_la_DATA)'; test -n "$(mod_asr_ladir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(mod_asr_ladir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -750,9 +775,9 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES)
+all-am: Makefile $(LTLIBRARIES) $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(moddir)"; do \
+	for dir in "$(DESTDIR)$(moddir)" "$(DESTDIR)$(mod_asr_ladir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -808,7 +833,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-modLTLIBRARIES
+install-data-am: install-modLTLIBRARIES install-mod_asr_laDATA
 
 install-dvi: install-dvi-am
 
@@ -854,7 +879,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-modLTLIBRARIES
+uninstall-am: uninstall-modLTLIBRARIES uninstall-mod_asr_laDATA
 
 .MAKE: install-am install-strip
 
@@ -865,12 +890,13 @@ uninstall-am: uninstall-modLTLIBRARIES
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-modLTLIBRARIES install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-modLTLIBRARIES
+	install-info-am install-man install-modLTLIBRARIES \
+	install-mod_asr_laDATA install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-modLTLIBRARIES uninstall-mod_asr_laDATA
 
 
 all-modules: all
